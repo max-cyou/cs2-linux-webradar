@@ -71,7 +71,7 @@ const e_colors c_cs_player_controller::get_color()
 	return color;
 }
 
-const f_vector& c_cs_player_controller::get_vec_origin()
+f_vector c_cs_player_controller::get_vec_origin()
 {
 	const auto pawn = get_player_pawn();
 	if (!pawn)
@@ -80,7 +80,7 @@ const f_vector& c_cs_player_controller::get_vec_origin()
 	return pawn->get_scene_origin();
 }
 
-const f_vector& c_base_entity::get_scene_origin()
+f_vector c_base_entity::get_scene_origin()
 {
 	const auto game_scene_node = m_pGameSceneNode();
 	if (!game_scene_node)

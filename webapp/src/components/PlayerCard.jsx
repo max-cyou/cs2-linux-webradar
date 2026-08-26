@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import MaskedIcon from "./maskedicon";
+import MaskedIcon from "./MaskedIcon";
 import { playerColors, teamEnum } from "../utilities/utilities";
 
 const PlayerCard = ({ playerData, isOnRightSide }) => {

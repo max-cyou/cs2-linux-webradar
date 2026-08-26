@@ -16,7 +16,6 @@ namespace f::bomb
 namespace f
 {
 	void run();
-	void get_map();
 	void get_player_info();
 
 	inline nlohmann::json m_data = {};

@@ -57,6 +57,17 @@ int main()
     for (;;)
     {
         sdk::update();
+
+        if (!sdk::m_local_controller)
+        {
+            static int warn_count = 0;
+            if (warn_count++ % 50 == 0)
+                LOG_WARNING("m_local_controller is null, skipping");
+            web_socket.send(f::m_data.dump());
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
         f::run();
         web_socket.send(f::m_data.dump());
 

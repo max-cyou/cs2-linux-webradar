@@ -15,7 +15,7 @@ bool i::setup()
 
 	LOG_INFO("game_entity_system pattern: '%s'", GET_GAME_ENTITY_SYSTEM);
 	m_game_entity_system = m_memory->find_pattern(CLIENT_DLL, GET_GAME_ENTITY_SYSTEM)
-		->rip(0x03, 0x07).as<c_game_entity_system*>();
+		->rip_read(0x03, 0x07).as<c_game_entity_system*>();
 	LOG_INFO("game_entity_system = %p", (void*)m_game_entity_system);
 	success &= (m_game_entity_system != nullptr);
 

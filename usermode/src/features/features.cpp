@@ -7,30 +7,19 @@ void f::run()
 
 	const auto local_team = sdk::m_local_controller->m_iTeamNum();
 	if (local_team == e_team::none || local_team == e_team::spec)
+	{
+		static int team_warn = 0;
+		if (team_warn++ % 50 == 0)
+			LOG_WARNING("local_team=%d, skipping", (int)local_team);
 		return;
+	}
 
 	m_data = nlohmann::json{};
 	m_player_data = nlohmann::json{};
 
 	m_data["m_local_team"] = local_team;
 
-	get_map();
 	get_player_info();
-}
-
-void f::get_map()
-{
-	const auto map_name = i::m_global_vars->m_map_name();
-	if (map_name.empty() || map_name.find("<empty>") != std::string::npos)
-	{
-		m_data["m_map"] = "invalid";
-
-		LOG_WARNING("failed to get map name! updating m_global_vars");
-		i::m_global_vars = m_memory->read_t<c_global_vars*>(m_memory->find_pattern(CLIENT_DLL, GET_GLOBAL_VARS)->rip().as<c_global_vars*>());
-		return;
-	}
-
-	m_data["m_map"] = map_name;
 }
 
 void f::get_player_info()
@@ -38,6 +27,7 @@ void f::get_player_info()
 	m_data["m_players"] = nlohmann::json::array();
 
 	const auto highest_idx = 1024;
+	int checked = 0, found = 0;
 	for (int32_t idx = 0; idx < highest_idx; idx++)
 	{
 		const auto entity = i::m_game_entity_system->get(idx);
@@ -52,6 +42,7 @@ void f::get_player_info()
 		if (class_name.empty())
 			continue;
 
+		checked++;
 		const auto hashed_class_name = fnv1a::hash(class_name);
 
 		if (hashed_class_name == fnv1a::hash("CCSPlayerController"))
@@ -83,4 +74,8 @@ void f::get_player_info()
 			f::bomb::get_planted_bomb(planted_c4);
 		}
 	}
+
+	static int log_count = 0;
+	if (log_count++ % 50 == 0)
+		LOG_INFO("entity scan: checked=%d, players=%zu", checked, m_data["m_players"].size());
 }

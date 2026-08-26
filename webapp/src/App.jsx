@@ -4,7 +4,8 @@ import "./App.css";
 import PlayerCard from "./components/PlayerCard";
 import Radar from "./components/Radar";
 import SettingsButton from "./components/settings";
-import MaskedIcon from "./components/maskedicon";
+import MaskedIcon from "./components/MaskedIcon";
+import MapSelector from "./components/MapSelector";
 
 const CONNECTION_TIMEOUT = 5000;
 
@@ -30,9 +31,23 @@ const loadSettings = () => {
 const App = () => {
   const [playerArray, setPlayerArray] = useState([]);
   const [mapData, setMapData] = useState();
+  const [selectedMap, setSelectedMap] = useState(() => localStorage.getItem("selectedMap") || "");
   const [localTeam, setLocalTeam] = useState();
   const [bombData, setBombData] = useState();
   const [settings, setSettings] = useState(loadSettings());
+
+  useEffect(() => {
+    localStorage.setItem("selectedMap", selectedMap);
+  }, [selectedMap]);
+
+  useEffect(() => {
+    if (!selectedMap) { setMapData(undefined); return; }
+    (async () => {
+      const data = await (await fetch(`data/${selectedMap}/data.json`)).json();
+      setMapData({ ...data, name: selectedMap });
+      document.body.style.backgroundImage = `url(./data/${selectedMap}/background.png)`;
+    })();
+  }, [selectedMap]);
 
   // Save settings to local storage whenever they change
   useEffect(() => {
@@ -96,15 +111,6 @@ const App = () => {
         setPlayerArray(parsedData.m_players);
         setLocalTeam(parsedData.m_local_team);
         setBombData(parsedData.m_bomb);
-
-        const map = parsedData.m_map;
-        if (map !== "invalid") {
-          setMapData({
-            ...(await (await fetch(`data/${map}/data.json`)).json()),
-            name: map,
-          });
-          document.body.style.backgroundImage = `url(./data/${map}/background.png)`;
-        }
       };
     };
 
@@ -119,7 +125,8 @@ const App = () => {
       }}
     >
       <div className={`w-full h-full flex flex-col justify-center overflow-hidden relative`}>
-        <div className={`absolute right-2.5 top-2.5 z-50`}>
+        <div className={`absolute right-2.5 top-2.5 z-50 flex gap-2 items-center`}>
+          <MapSelector selectedMap={selectedMap} onMapChange={setSelectedMap} />
           <SettingsButton settings={settings} onSettingsChange={setSettings} />
         </div>
 

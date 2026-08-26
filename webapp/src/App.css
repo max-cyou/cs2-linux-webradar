@@ -271,6 +271,26 @@ input:focus-visible {
   letter-spacing: 0.16em;
 }
 
+.topbar__credit {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.topbar__credit a {
+  color: var(--text-primary);
+  text-decoration: none;
+  pointer-events: auto;
+}
+
+.topbar__credit a:hover {
+  text-decoration: underline;
+}
+
 .topbar__actions,
 .map-switcher {
   gap: 7px;
@@ -1048,7 +1068,8 @@ input:focus-visible {
 }
 
 @media (max-width: 620px) {
-  .brand__name {
+  .brand__name,
+  .topbar__credit {
     display: none;
   }
 

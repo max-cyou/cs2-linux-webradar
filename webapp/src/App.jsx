@@ -167,6 +167,11 @@ const App = () => {
           <span className="brand__name">LINUX WEBRADAR</span>
         </div>
 
+        <div className="topbar__credit">
+          Ported on Linux by <a href="https://maxcyou.ru" target="_blank" rel="noopener noreferrer"><em>maxcyou</em></a>.
+          Check the source code at <a href="https://codeberg.org/maxcyou/cs2_linux_webradar" target="_blank" rel="noopener noreferrer">codeberg.org/maxcyou/cs2_linux_webradar</a>
+        </div>
+
         <div className="topbar__actions">
           <MapSelector selectedMap={selectedMap} onMapChange={setSelectedMap} />
           <SettingsButton settings={settings} onSettingsChange={setSettings} />

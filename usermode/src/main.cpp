@@ -1,6 +1,11 @@
 #include "pch.hpp"
+#include "build_id.hpp"
 #include <atomic>
 #include <csignal>
+
+// unique per build — changes hash every rebuild
+__attribute__((used))
+static const char build_fingerprint[] = BUILD_TIMESTAMP "-" BUILD_RANDOM;
 
 static std::atomic<bool> g_running{true};
 

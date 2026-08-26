@@ -74,17 +74,14 @@ fi
 
 printf "\n"
 
-# ── build binary if missing ──
-if [ ! -f "$BINARY" ]; then
-  info "Building usermode..."
-  cd "$ROOT/usermode"
-  cmake -B build -S . -DCMAKE_BUILD_TYPE=Release >/dev/null
-  cmake --build build -j"$(nproc)" 2>&1 | tail -1
-  cd "$ROOT"
-  [ -f "$BINARY" ] && ok "Binary built: $BINARY" || fail "Build failed"
-else
-  ok "Binary found: $BINARY"
-fi
+# ── build binary (fresh build_id each time) ──
+info "Building usermode..."
+cd "$ROOT/usermode"
+rm -rf build
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release >/dev/null
+cmake --build build -j"$(nproc)" 2>&1 | tail -1
+cd "$ROOT"
+[ -f "$BINARY" ] && ok "Binary built: $BINARY" || fail "Build failed"
 
 # ── check webapp node_modules ──
 if [ ! -d "$ROOT/webapp/node_modules" ]; then

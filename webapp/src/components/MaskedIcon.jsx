@@ -1,15 +1,17 @@
-const MaskedIcon = ({ path, height, color }) => {
+const MaskedIcon = ({ path, height, size, color = "bg-radar-secondary", label }) => {
+  const iconSize = size || height || 18;
+
   return (
-    <div
-      className={`${color}`}
+    <span
+      className={`masked-icon ${color}`}
       style={{
-        WebkitMask: `url(${path}) no-repeat center / contain`,
-        width: `auto`,
-        height: height,
+        "--icon-mask": `url(${path})`,
+        "--icon-size": typeof iconSize === "number" ? `${iconSize}px` : iconSize,
       }}
-    >
-      <img className="w-full h-full opacity-0" src={path}></img>
-    </div>
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : "true"}
+    />
   );
 };
 

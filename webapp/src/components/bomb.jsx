@@ -1,41 +1,29 @@
-import { useRef } from "react";
-import { getRadarPosition, teamEnum } from "../utilities/utilities";
+import { getRadarPosition, rotateRadarPosition, teamEnum } from "../utilities/utilities";
 
-const Bomb = ({ bombData, mapData, radarImage, localTeam, settings }) => {
-  const radarPosition = getRadarPosition(mapData, bombData);
-
-  const bombRef = useRef();
-  const bombBounding = (bombRef.current &&
-    bombRef.current.getBoundingClientRect()) || { width: 0, height: 0 };
-
-  const radarImageBounding = (radarImage !== undefined &&
-    radarImage.getBoundingClientRect()) || { width: 0, height: 0 };
-  const radarImageTranslation = {
-    x: radarImageBounding.width * radarPosition.x - bombBounding.width * 0.5,
-    y: radarImageBounding.height * radarPosition.y - bombBounding.height * 0.5,
-  };
-
-  // Calculate bomb size based on settings
-  const baseSize = 1.5; // Base size in vw
-  const scaledSize = baseSize * settings.bombSize;
+const Bomb = ({ bombData, mapData, localTeam, settings, rotation }) => {
+  const basePosition = getRadarPosition(mapData, bombData);
+  const position = rotateRadarPosition(basePosition, rotation);
+  const isVisible = Number.isFinite(position.x)
+    && Number.isFinite(position.y)
+    && position.x >= 0
+    && position.x <= 1
+    && position.y >= 0
+    && position.y <= 1;
+  const color = bombData.m_is_defused
+    ? "#66bb6a"
+    : localTeam === teamEnum.counterTerrorist ? "#78b7e3" : "#ef5350";
 
   return (
-    <div
-      className={`absolute origin-center rounded-[100%] left-0 top-0`}
-      ref={bombRef}
+    <span
+      className="bomb-marker"
       style={{
-        width: `${scaledSize}vw`,
-        height: `${scaledSize}vw`,
-        transform: `translate(${radarImageTranslation.x}px, ${radarImageTranslation.y}px)`,
-        backgroundColor: `${
-          (bombData.m_is_defused && `#50904c`) ||
-          (localTeam == teamEnum.counterTerrorist && `#6492b4`) ||
-          `#c90b0b`
-        }`,
-        WebkitMask: `url('./assets/icons/c4_sml.png') no-repeat center / contain`,
-        opacity: `1`,
-        zIndex: `1`,
+        "--marker-x": `${position.x * 100}%`,
+        "--marker-y": `${position.y * 100}%`,
+        "--marker-color": color,
+        "--marker-scale": Number(settings.bombSize) || 0.5,
+        opacity: isVisible ? 1 : 0,
       }}
+      aria-label="Bomb"
     />
   );
 };

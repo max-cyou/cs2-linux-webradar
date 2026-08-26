@@ -1,18 +1,33 @@
 export const getRadarPosition = (mapData, entityCoords) => {
-  if (!entityCoords.x || !entityCoords.y) {
-    return { x: 0, y: 0 };
-  }
+  const entityX = Number(entityCoords?.x);
+  const entityY = Number(entityCoords?.y);
+  const mapX = Number(mapData?.x);
+  const mapY = Number(mapData?.y);
+  const scale = Number(mapData?.scale);
 
-  if (!mapData.x || !mapData.y) {
+  if (![entityX, entityY, mapX, mapY, scale].every(Number.isFinite) || scale === 0) {
     return { x: 0, y: 0 };
   }
 
   const position = {
-    x: (entityCoords.x - mapData.x) / mapData.scale / 1024,
-    y: (((entityCoords.y - mapData.y) / mapData.scale) * -1.0) / 1024,
+    x: (entityX - mapX) / scale / 1024,
+    y: (((entityY - mapY) / scale) * -1) / 1024,
   };
 
   return position;
+};
+
+export const rotateRadarPosition = (position, rotation = 0) => {
+  switch (((rotation % 360) + 360) % 360) {
+    case 90:
+      return { x: 1 - position.y, y: position.x };
+    case 180:
+      return { x: 1 - position.x, y: 1 - position.y };
+    case 270:
+      return { x: position.y, y: 1 - position.x };
+    default:
+      return position;
+  }
 };
 
 export const playerColors = [

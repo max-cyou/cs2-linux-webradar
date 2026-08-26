@@ -11,7 +11,8 @@ export default {
           "primary": "#b1d0e7",
           "secondary": "#6492b4",
           "green": "#50904c",
-          "red": "#c90b0be6"
+          "red": "#c90b0be6",
+          "panel": "#0a1623"
         }
       },
     },

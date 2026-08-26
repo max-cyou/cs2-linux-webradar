@@ -1,172 +1,193 @@
-import ReactDOM from "react-dom/client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import MapGrid from "./components/MapGrid";
+import MapSelector from "./components/MapSelector";
+import MaskedIcon from "./components/MaskedIcon";
 import PlayerCard from "./components/PlayerCard";
 import Radar from "./components/Radar";
 import SettingsButton from "./components/settings";
-import MaskedIcon from "./components/MaskedIcon";
-import MapSelector from "./components/MapSelector";
 
 const CONNECTION_TIMEOUT = 5000;
-
-/* change this to '1' if you want to use offline (your own pc only) */
-const USE_LOCALHOST = 0;
-
-/* you can get your public ip from https://ipinfo.io/ip */
-const PUBLIC_IP = "your ip goes here".trim();
 const PORT = 22006;
-
-const EFFECTIVE_IP = USE_LOCALHOST ? "localhost" : PUBLIC_IP.match(/[a-zA-Z]/) ? window.location.hostname : PUBLIC_IP;
-
 const DEFAULT_SETTINGS = {
   dotSize: 1,
   bombSize: 0.5,
+  showWeapon: false,
+  showNickname: false,
+  showHealth: false,
 };
 
 const loadSettings = () => {
-  const savedSettings = localStorage.getItem("radarSettings");
-  return savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS;
+  try {
+    const saved = JSON.parse(localStorage.getItem("radarSettings"));
+    return {
+      dotSize: Number(saved?.dotSize) || DEFAULT_SETTINGS.dotSize,
+      bombSize: Number(saved?.bombSize) || DEFAULT_SETTINGS.bombSize,
+      showWeapon: Boolean(saved?.showWeapon),
+      showNickname: Boolean(saved?.showNickname),
+      showHealth: Boolean(saved?.showHealth),
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 };
 
 const App = () => {
   const [playerArray, setPlayerArray] = useState([]);
   const [mapData, setMapData] = useState();
-  const [selectedMap, setSelectedMap] = useState(() => localStorage.getItem("selectedMap") || "");
+  const [mapError, setMapError] = useState("");
+  const [selectedMap, setSelectedMap] = useState(
+    () => localStorage.getItem("selectedMap") || "",
+  );
   const [localTeam, setLocalTeam] = useState();
   const [bombData, setBombData] = useState();
-  const [settings, setSettings] = useState(loadSettings());
+  const [settings, setSettings] = useState(loadSettings);
+  const [connection, setConnection] = useState("connecting");
 
   useEffect(() => {
-    localStorage.setItem("selectedMap", selectedMap);
+    if (selectedMap) localStorage.setItem("selectedMap", selectedMap);
+    else localStorage.removeItem("selectedMap");
   }, [selectedMap]);
 
   useEffect(() => {
-    if (!selectedMap) { setMapData(undefined); return; }
-    (async () => {
-      const data = await (await fetch(`data/${selectedMap}/data.json`)).json();
-      setMapData({ ...data, name: selectedMap });
-      document.body.style.backgroundImage = `url(./data/${selectedMap}/background.png)`;
-    })();
+    const controller = new AbortController();
+
+    if (!selectedMap) {
+      setMapData(undefined);
+      setMapError("");
+      document.body.style.backgroundImage = "none";
+      return () => controller.abort();
+    }
+
+    setMapError("");
+    setMapData(undefined);
+
+    fetch(`./data/${selectedMap}/data.json`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Map data returned ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        setMapData({ ...data, name: selectedMap });
+        document.body.style.backgroundImage = `url(./data/${selectedMap}/background.png)`;
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          setMapError("Could not load this map");
+          setMapData({ name: selectedMap });
+        }
+      });
+
+    return () => controller.abort();
   }, [selectedMap]);
 
-  // Save settings to local storage whenever they change
   useEffect(() => {
     localStorage.setItem("radarSettings", JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      let webSocket = null;
-      let webSocketURL = null;
-      let connectionTimeout = null;
+    let socket;
+    let connectTimer;
+    let retryTimer;
+    let stopped = false;
+    let attempts = 0;
 
-      if (PUBLIC_IP.startsWith("192.168")) {
-        document.getElementsByClassName(
-          "radar_message"
-        )[0].textContent = `A public IP address is required! Currently detected IP (${PUBLIC_IP}) is a private/local IP`;
-        return;
-      }
+    const connect = () => {
+      if (stopped) return;
 
-      if (!webSocket) {
+      setConnection(attempts ? "reconnecting" : "connecting");
+      socket = new WebSocket(`ws://${window.location.hostname}:${PORT}/cs2_webradar`);
+      connectTimer = window.setTimeout(() => socket.close(), CONNECTION_TIMEOUT);
+
+      socket.onopen = () => {
+        window.clearTimeout(connectTimer);
+        attempts = 0;
+        setConnection("live");
+      };
+
+      socket.onmessage = async (event) => {
         try {
-          if (USE_LOCALHOST) {
-            webSocketURL = `ws://localhost:${PORT}/cs2_webradar`;
-          } else {
-            webSocketURL = `ws://${EFFECTIVE_IP}:${PORT}/cs2_webradar`;
-          }
-
-          if (!webSocketURL) return;
-          webSocket = new WebSocket(webSocketURL);
-        } catch (error) {
-          document.getElementsByClassName(
-            "radar_message"
-          )[0].textContent = `${error}`;
+          const payload = typeof event.data === "string"
+            ? event.data
+            : await event.data.text();
+          const data = JSON.parse(payload);
+          setPlayerArray(Array.isArray(data.m_players) ? data.m_players : []);
+          setLocalTeam(data.m_local_team);
+          setBombData(data.m_bomb);
+        } catch {
+          setConnection("error");
         }
-      }
-
-      connectionTimeout = setTimeout(() => {
-        webSocket.close();
-      }, CONNECTION_TIMEOUT);
-
-      webSocket.onopen = async () => {
-        clearTimeout(connectionTimeout);
-        console.info("connected to the web socket");
       };
 
-      webSocket.onclose = async () => {
-        clearTimeout(connectionTimeout);
-        console.error("disconnected from the web socket");
-      };
-
-      webSocket.onerror = async (error) => {
-        clearTimeout(connectionTimeout);
-        document.getElementsByClassName(
-          "radar_message"
-        )[0].textContent = `WebSocket connection to '${webSocketURL}' failed. Please check the IP address and try again`;
-        console.error(error);
-      };
-
-      webSocket.onmessage = async (event) => {
-        const parsedData = JSON.parse(await event.data.text());
-        setPlayerArray(parsedData.m_players);
-        setLocalTeam(parsedData.m_local_team);
-        setBombData(parsedData.m_bomb);
+      socket.onerror = () => setConnection("error");
+      socket.onclose = () => {
+        window.clearTimeout(connectTimer);
+        if (stopped) return;
+        setConnection("reconnecting");
+        const delay = Math.min(1000 * 2 ** attempts, 8000);
+        attempts += 1;
+        retryTimer = window.setTimeout(connect, delay);
       };
     };
 
-    fetchData();
+    connect();
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(connectTimer);
+      window.clearTimeout(retryTimer);
+      socket?.close();
+    };
   }, []);
 
+  const teams = useMemo(() => ({
+    terrorists: playerArray.filter((player) => player.m_team === 2),
+    counterTerrorists: playerArray.filter((player) => player.m_team === 3),
+  }), [playerArray]);
+
+  const connectionMessage = {
+    connecting: "Connecting to game feed",
+    reconnecting: "Reconnecting to game feed",
+    error: "Waiting to reconnect",
+    live: "Connected to game feed",
+  }[connection];
+
+  if (!selectedMap) {
+    return (
+      <div className="app-shell app-shell--maps">
+        <MapGrid onSelect={setSelectedMap} />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-screen h-screen flex flex-col"
-      style={{
-        background: `radial-gradient(50% 50% at 50% 50%, rgba(20, 40, 55, 0.95) 0%, rgba(7, 20, 30, 0.95) 100%)`,
-        backdropFilter: `blur(7.5px)`,
-      }}
-    >
-      <div className={`w-full h-full flex flex-col justify-center overflow-hidden relative`}>
-        <div className={`absolute right-2.5 top-2.5 z-50 flex gap-2 items-center`}>
+    <div className="app-shell app-shell--radar">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand__name">LINUX WEBRADAR</span>
+        </div>
+
+        <div className="topbar__actions">
           <MapSelector selectedMap={selectedMap} onMapChange={setSelectedMap} />
           <SettingsButton settings={settings} onSettingsChange={setSettings} />
         </div>
+      </header>
 
-        {bombData && bombData.m_blow_time > 0 && !bombData.m_is_defused && (
-          <div className={`absolute left-1/2 top-2 flex-col items-center gap-1 z-50`}>
-            <div className={`flex justify-center items-center gap-1`}>
-              <MaskedIcon
-                path={`./assets/icons/c4_sml.png`}
-                height={32}
-                color={
-                  (bombData.m_is_defusing &&
-                    bombData.m_blow_time - bombData.m_defuse_time > 0 &&
-                    `bg-radar-green`) ||
-                  (bombData.m_blow_time - bombData.m_defuse_time < 0 &&
-                    `bg-radar-red`) ||
-                  `bg-radar-secondary`
-                }
-              />
-              <span>{`${bombData.m_blow_time.toFixed(1)}s ${(bombData.m_is_defusing &&
-                `(${bombData.m_defuse_time.toFixed(1)}s)`) ||
-                ""
-                }`}</span>
-            </div>
+      <main className="radar-layout">
+        <section className="team-roster team-roster--t" aria-label="Terrorists">
+          <div className="team-roster__heading">
+            <span>T</span>
+            <span>{teams.terrorists.length}</span>
           </div>
-        )}
+          <div className="team-roster__cards">
+            {teams.terrorists.map((player) => (
+              <PlayerCard key={player.m_idx} playerData={player} />
+            ))}
+          </div>
+        </section>
 
-        <div className={`flex items-center justify-evenly`}>
-          <ul id="terrorist" className="lg:flex hidden flex-col gap-7 m-0 p-0">
-            {playerArray
-              .filter((player) => player.m_team == 2)
-              .map((player) => (
-                <PlayerCard
-                  right={false}
-                  key={player.m_idx}
-                  playerData={player}
-                />
-              ))}
-          </ul>
-
-          {(playerArray.length > 0 && mapData && (
+        <section className="radar-stage" aria-label="Radar">
+          {playerArray.length > 0 && mapData && !mapError ? (
             <Radar
               playerArray={playerArray}
               radarImage={`./data/${mapData.name}/radar.png`}
@@ -175,31 +196,45 @@ const App = () => {
               bombData={bombData}
               settings={settings}
             />
-          )) || (
-              <div id="radar" className={`relative overflow-hidden origin-center`}>
-                <h1 className="radar_message">
-                  Connected! Waiting for data from usermode
-                </h1>
+          ) : (
+            <div id="radar" className="radar radar--empty">
+              <div className="radar-message">
+                <span className="radar-message__pulse" aria-hidden="true" />
+                <strong>{mapError || "Waiting for game data"}</strong>
+                <small>{mapError ? "Choose another map and try again" : connectionMessage}</small>
               </div>
-            )}
+            </div>
+          )}
+        </section>
 
-          <ul
-            id="counterTerrorist"
-            className="lg:flex hidden flex-col gap-7 m-0 p-0"
-          >
-            {playerArray
-              .filter((player) => player.m_team == 3)
-              .map((player) => (
-                <PlayerCard
-                  right={true}
-                  key={player.m_idx}
-                  playerData={player}
-                  settings={settings}
-                />
-              ))}
-          </ul>
+        <section className="team-roster team-roster--ct" aria-label="Counter-Terrorists">
+          <div className="team-roster__heading">
+            <span>CT</span>
+            <span>{teams.counterTerrorists.length}</span>
+          </div>
+          <div className="team-roster__cards">
+            {teams.counterTerrorists.map((player) => (
+              <PlayerCard key={player.m_idx} playerData={player} />
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {bombData?.m_blow_time > 0 && !bombData.m_is_defused && (
+        <div className="bomb-timer" role="status">
+          <MaskedIcon
+            path="./assets/icons/c4_sml.png"
+            size={22}
+            color={
+              (bombData.m_is_defusing && bombData.m_blow_time - bombData.m_defuse_time > 0 && "bg-radar-green")
+              || (bombData.m_blow_time - bombData.m_defuse_time < 0 && "bg-radar-red")
+              || "bg-radar-secondary"
+            }
+          />
+          <span>{bombData.m_blow_time.toFixed(1)}s</span>
+          {bombData.m_is_defusing && <small>{bombData.m_defuse_time.toFixed(1)}s defuse</small>}
         </div>
-      </div>
+      )}
     </div>
   );
 };

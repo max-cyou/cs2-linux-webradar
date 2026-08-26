@@ -2,38 +2,58 @@
 
 bool c_memory::setup()
 {
-	const auto process_id = this->get_process_id("cs2.exe");
+	const auto process_id = this->get_process_id("cs2");
 	if (!process_id.has_value())
 	{
-		LOG_ERROR("failed to get process id for 'cs2.exe'\n			  make sure the game is running");
+		LOG_ERROR("failed to get process id for 'cs2'\n\t\t\t  make sure the game is running");
 		return {};
 	}
 
 	this->m_id = process_id.value();
-	this->m_handle = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, false, this->m_id);
 
-	return this->m_handle != nullptr;
+	const auto mem_path = std::format("/proc/{}/mem", this->m_id);
+	this->m_mem_fd = open(mem_path.c_str(), O_RDONLY);
+
+	return this->m_mem_fd != -1;
 }
 
 std::optional<uint32_t> c_memory::get_process_id(const std::string_view& process_name)
 {
-	const auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (snapshot == INVALID_HANDLE_VALUE)
+	const auto proc_dir = opendir("/proc");
+	if (!proc_dir)
 		return {};
 
-	PROCESSENTRY32 process_entry = { 0 };
-	process_entry.dwSize = sizeof(process_entry);
-
-	for (Process32First(snapshot, &process_entry); Process32Next(snapshot, &process_entry);)
+	struct dirent* entry;
+	while ((entry = readdir(proc_dir)) != nullptr)
 	{
-		if (std::string_view(process_entry.szExeFile) == process_name)
+		if (entry->d_type != DT_DIR)
+			continue;
+
+		const std::string_view name = entry->d_name;
+		if (name.empty() || !std::isdigit(name[0]))
+			continue;
+
+		const auto status_path = std::format("/proc/{}/comm", name);
+
+		std::ifstream status_file(status_path);
+		if (!status_file.is_open())
+			continue;
+
+		std::string line;
+		if (std::getline(status_file, line))
 		{
-			CloseHandle(snapshot);
-			return process_entry.th32ProcessID;
+			if (!line.empty() && line.back() == '\n')
+				line.pop_back();
+
+			if (line == process_name)
+			{
+				closedir(proc_dir);
+				return static_cast<uint32_t>(std::stoul(std::string(name)));
+			}
 		}
 	}
 
-	CloseHandle(snapshot);
+	closedir(proc_dir);
 	return {};
 }
 
@@ -106,25 +126,33 @@ std::optional<c_address> c_memory::find_pattern(const std::string_view& module_n
 
 std::pair<std::optional<uintptr_t>, std::optional<uintptr_t>> c_memory::get_module_info(const std::string_view& module_name)
 {
-	const auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, this->m_id);
-	if (snapshot == INVALID_HANDLE_VALUE)
+	const auto maps_path = std::format("/proc/{}/maps", this->m_id);
+
+	std::ifstream maps_file(maps_path);
+	if (!maps_file.is_open())
 		return {};
 
-	MODULEENTRY32 module_entry = { 0 };
-	module_entry.dwSize = sizeof(module_entry);
-
-	for (Module32First(snapshot, &module_entry); Module32Next(snapshot, &module_entry);)
+	std::string line;
+	while (std::getline(maps_file, line))
 	{
-		auto equals_ignore_case = [](const std::string_view str_1, const std::string_view str_2)
-		{
-			return (str_1.size() == str_2.size()) && equal(str_1.begin(), str_1.end(), str_2.begin(), [](const char a, const char b)
-			{
-				return tolower(a) == tolower(b);
-			});
-		};
+		if (line.find(module_name) == std::string::npos)
+			continue;
 
-		if (equals_ignore_case(module_entry.szModule, module_name))
-			return std::make_pair(reinterpret_cast<uintptr_t>(module_entry.modBaseAddr), static_cast<uintptr_t>(module_entry.modBaseSize));
+		const auto dash_pos = line.find('-');
+		const auto space_pos = line.find(' ', dash_pos + 1);
+
+		if (dash_pos == std::string::npos || space_pos == std::string::npos)
+			continue;
+
+		uintptr_t start = 0, end = 0;
+		std::from_chars(line.c_str() + dash_pos + 1, line.c_str() + space_pos, start, 16);
+
+		const auto next_space = line.find(' ', space_pos + 1);
+		const auto end_str = (next_space != std::string::npos) ? next_space : line.size();
+		std::from_chars(line.c_str() + space_pos + 1, line.c_str() + end_str, end, 16);
+
+		if (start && end && end > start)
+			return std::make_pair(start, end - start);
 	}
 
 	return {};

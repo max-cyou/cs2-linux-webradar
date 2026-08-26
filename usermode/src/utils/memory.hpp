@@ -5,8 +5,8 @@ class c_memory
 public:
 	~c_memory()
 	{
-		if (this->m_handle != nullptr)
-			CloseHandle(this->m_handle);
+		if (this->m_mem_fd != -1)
+			close(this->m_mem_fd);
 	}
 
 	bool setup();
@@ -16,8 +16,7 @@ public:
 
 	bool read_t(const uintptr_t address, void* buffer, uintptr_t size)
 	{
-		this->read_memory(reinterpret_cast<void*>(address), buffer, size);
-		return true;
+		return this->read_memory(reinterpret_cast<void*>(address), buffer, size);
 	}
 
 	template <typename t>
@@ -44,21 +43,24 @@ public:
 
 		this->read_memory(reinterpret_cast<void*>(address), buffer.data(), length);
 
-		const auto& it = find(buffer.begin(), buffer.end(), '\0');
+		const auto& it = std::find(buffer.begin(), buffer.end(), '\0');
 
 		if (it != buffer.end())
-			buffer.resize(distance(buffer.begin(), it));
+			buffer.resize(std::distance(buffer.begin(), it));
 
 		return std::string(buffer.begin(), buffer.end());
 	}
 
 private:
-	void* m_handle = nullptr;
+	int m_mem_fd = -1;
 	uint32_t m_id = 0;
 
 	bool read_memory(void* address, void* buffer, const size_t size)
 	{
-		return ReadProcessMemory(this->m_handle, reinterpret_cast<void*>(address), buffer, size, nullptr);
+		struct iovec local = { buffer, size };
+		struct iovec remote = { address, size };
+		const ssize_t result = process_vm_readv(this->m_id, &local, 1, &remote, 1, 0);
+		return result == static_cast<ssize_t>(size);
 	}
 };
 

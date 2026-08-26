@@ -33,7 +33,6 @@ const App = () => {
   const [localTeam, setLocalTeam] = useState();
   const [bombData, setBombData] = useState();
   const [settings, setSettings] = useState(loadSettings());
-  const [bannerOpened, setBannerOpened] = useState(true)
 
   // Save settings to local storage whenever they change
   useEffect(() => {
@@ -119,20 +118,6 @@ const App = () => {
         backdropFilter: `blur(7.5px)`,
       }}
     >
-      {bannerOpened && (
-        <section className="w-full flex items-center justify-between p-2 bg-radar-primary">
-          <span className="w-full text-center text-[#1E3A54]">
-            <span className="font-medium">€4.99</span> -
-            HURRACAN - Plug & play feature rich shareable CS2 Web Radar
-            <a className="ml-2 inline banner-link text-[#1E3A54]" href="https://hurracan.com">Learn more</a>
-          </span>
-          <button onClick={() => setBannerOpened(false)} className="hover:bg-[#9BC5E4]">
-            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-              <path fill="#4E799F" d="M 7.21875 5.78125 L 5.78125 7.21875 L 14.5625 16 L 5.78125 24.78125 L 7.21875 26.21875 L 16 17.4375 L 24.78125 26.21875 L 26.21875 24.78125 L 17.4375 16 L 26.21875 7.21875 L 24.78125 5.78125 L 16 14.5625 Z" />
-            </svg>
-          </button>
-        </section>
-      )}
       <div className={`w-full h-full flex flex-col justify-center overflow-hidden relative`}>
         <div className={`absolute right-2.5 top-2.5 z-50`}>
           <SettingsButton settings={settings} onSettingsChange={setSettings} />

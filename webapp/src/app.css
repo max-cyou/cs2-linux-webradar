@@ -23,13 +23,3 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
 }
-
-.banner-link {
-  transition: all 0.35s ease-in-out;
-  box-shadow: 0px 1.5px 0 0 #1E3A54;
-  height: 20px;
-}
-
-.banner-link:hover {
-  box-shadow: 0px 2.5px 0 0 #1E3A54;
-}

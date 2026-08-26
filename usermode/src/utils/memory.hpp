@@ -30,25 +30,26 @@ public:
 	template <typename T>
 	T read_t(const uintptr_t address) noexcept
 	{
-		T buffer{};
-		this->read_memory(reinterpret_cast<void*>(address), &buffer, sizeof(T));
-		return buffer;
-	}
+		if constexpr (std::is_same_v<T, std::string>)
+		{
+			static const int length = 64;
+			std::vector<char> buffer(length);
 
-	template <>
-	std::string read_t<std::string>(const uintptr_t address)
-	{
-		static const int length = 64;
-		std::vector<char> buffer(length);
+			this->read_memory(reinterpret_cast<void*>(address), buffer.data(), length);
 
-		this->read_memory(reinterpret_cast<void*>(address), buffer.data(), length);
+			const auto& it = std::find(buffer.begin(), buffer.end(), '\0');
 
-		const auto& it = std::find(buffer.begin(), buffer.end(), '\0');
+			if (it != buffer.end())
+				buffer.resize(std::distance(buffer.begin(), it));
 
-		if (it != buffer.end())
-			buffer.resize(std::distance(buffer.begin(), it));
-
-		return std::string(buffer.begin(), buffer.end());
+			return std::string(buffer.begin(), buffer.end());
+		}
+		else
+		{
+			T buffer{};
+			this->read_memory(reinterpret_cast<void*>(address), &buffer, sizeof(T));
+			return buffer;
+		}
 	}
 
 private:

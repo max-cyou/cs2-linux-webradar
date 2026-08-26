@@ -27,11 +27,11 @@ private:
 		if (static_cast<uint32_t>(idx >> 9) >= 0x3f)
 			return nullptr;
 
-		const auto entry_list = m_memory->read_t<uintptr_t>(this + 8i64 * (idx >> 9) + 16);
+		const auto entry_list = m_memory->read_t<uintptr_t>(reinterpret_cast<uintptr_t>(this) + static_cast<uintptr_t>(8) * (idx >> 9) + 16);
 		if (!entry_list)
 			return nullptr;
 
-		const auto player_controller = (uint32_t*)(112i64 * (idx & 0x1ff) + entry_list);
+		const auto player_controller = reinterpret_cast<uint32_t*>(static_cast<uintptr_t>(112) * (idx & 0x1ff) + entry_list);
 		if (!player_controller)
 			return nullptr;
 

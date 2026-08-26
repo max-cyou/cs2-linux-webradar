@@ -1,4 +1,6 @@
 #include "pch.hpp"
+#include <dirent.h>
+#include <fcntl.h>
 
 bool c_memory::setup()
 {

@@ -1,13 +1,12 @@
 #pragma once
 
-#define CLIENT_DLL "libclient2.so"
+#define CLIENT_DLL "libclient.so"
 #define ENGINE2_DLL "libengine2.so"
 #define SCHEMASYSTEM_DLL "libschemasystem.so"
 
-#define GET_SCHEMA_SYSTEM "48 89 05 ? ? ? ? 4c 8d 0d ? ? ? ? 33 c0"
-#define GET_ENTITY_LIST "48 8b 0d ? ? ? ? 48 89 7c 24 ? 8b fa c1 eb"
-#define GET_GLOBAL_VARS "48 89 15 ? ? ? ? 48 89 42"
-#define GET_LOCAL_PLAYER_CONTROLLER "4c 8d 05 ? ? ? ? 33 d2 4d 8b 04 c0"
+#define GET_GLOBAL_VARS "48 8d 05 ? ? ? ? 48 8b 00 8b 40 44 f3"
+#define GET_GAME_ENTITY_SYSTEM "48 89 3d ? ? ? ? e9 ? ? ? ? 55"
+#define GET_LOCAL_PLAYER_CONTROLLER "48 83 3d ? ? ? ? 00 0f 95 c0 c3"
 
 #define LOG_INFO(str, ...) \
     printf(" [info] " str "\n", ##__VA_ARGS__)

@@ -56,6 +56,14 @@ private:
 	int m_mem_fd = -1;
 	uint32_t m_id = 0;
 
+	struct module_segment
+	{
+		uintptr_t base;
+		uintptr_t end;
+	};
+
+	std::vector<module_segment> get_all_segments(const std::string_view& module_name);
+
 	bool read_memory(void* address, void* buffer, const size_t size)
 	{
 		struct iovec local = { buffer, size };

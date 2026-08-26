@@ -40,7 +40,6 @@
 #include "core/interfaces.hpp"
 #include "core/schema.hpp"
 
-#include "sdk/datatypes/utl_ts_hash.hpp"
 #include "sdk/datatypes/utl_vector.hpp"
 #include "sdk/datatypes/vector.hpp"
 
@@ -48,7 +47,6 @@
 #include "sdk/entity.hpp"
 
 #include "sdk/interfaces/game_entity_system.hpp"
-#include "sdk/interfaces/schema_system.hpp"
 #include "sdk/interfaces/global_vars.hpp"
 
 #include "core/sdk.hpp"

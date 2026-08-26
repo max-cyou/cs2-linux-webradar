@@ -7,6 +7,7 @@ public:
 	explicit c_address(const uintptr_t address) : m_address(address) {}
 
 	c_address rip(const ptrdiff_t offset = 0x03, const size_t length = 0x07) const;
+	c_address rip_read(const ptrdiff_t offset = 0x03, const size_t length = 0x07) const;
 
 	template<typename T>
 	T as() const

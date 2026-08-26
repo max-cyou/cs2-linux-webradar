@@ -1,0 +1,7 @@
+# prerequisites
+.vs
+.idea
+
+# others
+release
+vcpkg_installed

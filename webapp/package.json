@@ -1,7 +1,6 @@
 {
   "name": "cs2_webradar",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"node ws/app.js\" \"vite\"",

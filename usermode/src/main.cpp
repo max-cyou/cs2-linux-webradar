@@ -1,7 +1,18 @@
 #include "pch.hpp"
+#include <atomic>
+#include <csignal>
+
+static std::atomic<bool> g_running{true};
+
+static void signal_handler(int)
+{
+    g_running = false;
+}
 
 int main()
 {
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGTERM, signal_handler);
     config_data_t config_data = {};
     INIT_STEP("config system", cfg::setup(config_data));
     INIT_STEP("memory", m_memory->setup());
@@ -54,7 +65,7 @@ int main()
         return 1;
     }
 
-    for (;;)
+    while (g_running)
     {
         sdk::update();
 
@@ -73,6 +84,10 @@ int main()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    web_socket.stop();
+    ix::uninitNetSystem();
+    LOG_INFO("shutdown complete");
 
     return 0;
 }
